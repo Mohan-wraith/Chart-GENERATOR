@@ -13,23 +13,40 @@ from fake_useragent import UserAgent
 DB_FILE = "tv_shows.db"
 
 # ==========================================
-# 🎨 CUSTOM CSS (THE "PRO" LOOK)
+# 🛠️ FONT FIXER (Downloads Fonts Automatically)
+# ==========================================
+def install_fonts():
+    # We will download Roboto-Regular and Roboto-Bold to ensure the app looks perfect everywhere.
+    fonts = {
+        "Roboto-Regular.ttf": "https://github.com/google/fonts/raw/main/apache/roboto/Roboto-Regular.ttf",
+        "Roboto-Bold.ttf": "https://github.com/google/fonts/raw/main/apache/roboto/Roboto-Bold.ttf"
+    }
+    
+    for name, url in fonts.items():
+        if not os.path.exists(name):
+            try:
+                r = requests.get(url)
+                with open(name, "wb") as f:
+                    f.write(r.content)
+            except:
+                pass
+
+# Run this once at startup
+install_fonts()
+
+# ==========================================
+# 🎨 CUSTOM CSS
 # ==========================================
 st.set_page_config(layout="wide", page_title="TV Heatmap", page_icon="📺")
 
 st.markdown("""
 <style>
-    /* Make the app full width and remove padding */
     .block-container {
         padding-top: 2rem;
         padding-bottom: 2rem;
         max-width: 95% !important;
     }
-    
-    /* Hide standard Streamlit header */
     header {visibility: hidden;}
-    
-    /* Stylish Title */
     .main-title {
         font-size: 3.5rem;
         font-weight: 800;
@@ -38,27 +55,6 @@ st.markdown("""
         -webkit-text-fill-color: transparent;
         margin-bottom: 0.5rem;
     }
-    
-    /* Card-like background for show details */
-    .show-card {
-        background-color: #1E1E1E;
-        padding: 20px;
-        border-radius: 15px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        margin-bottom: 20px;
-    }
-    
-    /* Rating Badge */
-    .rating-box {
-        background-color: #F5C518;
-        color: #000;
-        padding: 5px 10px;
-        border-radius: 5px;
-        font-weight: bold;
-        font-size: 1.2rem;
-    }
-    
-    /* Recommendation Text */
     .rec-title {
         font-size: 1.1rem;
         font-weight: 600;
@@ -71,7 +67,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 🎨 VISUALIZATION ENGINE (Unchanged & Perfect)
+# 🎨 VISUALIZATION ENGINE
 # ==========================================
 
 def strip_html(s):
@@ -120,8 +116,12 @@ def draw_text_rich(draw, pos, text, font, fill, shadow=(0, 0, 0, 200), shadow_of
         draw.text((x + sx, y + sy), text, font=font, fill=shadow, anchor=anchor)
     draw.text((x, y), text, font=font, fill=fill, anchor=anchor)
 
+# --- ROBUST FONT LOADER ---
 def load_font(name_list, size):
-    for name in name_list:
+    # Try the downloaded fonts first (Roboto), then system fonts, then fallback
+    priorities = ["Roboto-Regular.ttf", "Roboto-Bold.ttf"] + name_list
+    
+    for name in priorities:
         try:
             return ImageFont.truetype(name, size)
         except:
@@ -168,11 +168,12 @@ def render_page(grid_df, poster_img, title, year_range, summary, main_rating):
     canvas = Image.new("RGB", (canvas_w, canvas_h), (0, 0, 0))
     draw = ImageDraw.Draw(canvas)
 
-    f_reg = load_font(["arial.ttf", "LiberationSans-Regular.ttf"], 20)
-    title_font = load_font(["arialbd.ttf", "LiberationSans-Bold.ttf", "arial.ttf"], 72)
-    font_year = load_font(["arial.ttf", "LiberationSans-Regular.ttf"], 28)
-    font_rating = load_font(["arialbd.ttf", "LiberationSans-Bold.ttf", "arial.ttf"], 56)
-    box_font = load_font(["arialbd.ttf", "LiberationSans-Bold.ttf", "arial.ttf"], 22)
+    # Use the downloaded Roboto fonts!
+    f_reg = load_font(["Roboto-Regular.ttf", "arial.ttf"], 20)
+    title_font = load_font(["Roboto-Bold.ttf", "arialbd.ttf"], 72)
+    font_year = load_font(["Roboto-Regular.ttf", "arial.ttf"], 28)
+    font_rating = load_font(["Roboto-Bold.ttf", "arialbd.ttf"], 56)
+    box_font = load_font(["Roboto-Bold.ttf", "arialbd.ttf"], 22)
 
     if poster_img:
         bg = cover_crop(poster_img, canvas_w, canvas_h)

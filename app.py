@@ -16,22 +16,18 @@ DB_FILE = "tv_shows.db"
 # 🛠️ FONT FIXER (Downloads Fonts Automatically)
 # ==========================================
 def install_fonts():
-    # We will download Roboto-Regular and Roboto-Bold to ensure the app looks perfect everywhere.
     fonts = {
         "Roboto-Regular.ttf": "https://github.com/google/fonts/raw/main/apache/roboto/Roboto-Regular.ttf",
         "Roboto-Bold.ttf": "https://github.com/google/fonts/raw/main/apache/roboto/Roboto-Bold.ttf"
     }
-    
     for name, url in fonts.items():
         if not os.path.exists(name):
             try:
                 r = requests.get(url)
                 with open(name, "wb") as f:
                     f.write(r.content)
-            except:
-                pass
+            except: pass
 
-# Run this once at startup
 install_fonts()
 
 # ==========================================
@@ -67,7 +63,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 🎨 VISUALIZATION ENGINE
+# 🎨 VISUALIZATION ENGINE (HD TUNED)
 # ==========================================
 
 def strip_html(s):
@@ -116,11 +112,8 @@ def draw_text_rich(draw, pos, text, font, fill, shadow=(0, 0, 0, 200), shadow_of
         draw.text((x + sx, y + sy), text, font=font, fill=shadow, anchor=anchor)
     draw.text((x, y), text, font=font, fill=fill, anchor=anchor)
 
-# --- ROBUST FONT LOADER ---
 def load_font(name_list, size):
-    # Try the downloaded fonts first (Roboto), then system fonts, then fallback
     priorities = ["Roboto-Regular.ttf", "Roboto-Bold.ttf"] + name_list
-    
     for name in priorities:
         try:
             return ImageFont.truetype(name, size)
@@ -149,108 +142,122 @@ def wrap_text_pixel(draw, text, font, max_w):
     return lines
 
 def render_page(grid_df, poster_img, title, year_range, summary, main_rating):
-    left_col_w = 600
-    HEADER_Y = 90
-    FIXED_BOX_W = 110
-    FIXED_BOX_H = 42
-    GAP_BETWEEN_COLS = 80
+    # --- UPSCALED DIMENSIONS FOR READABILITY ---
+    left_col_w = 800  # Wider title area
+    HEADER_Y = 120    # Lower header
+    FIXED_BOX_W = 160 # Wider boxes
+    FIXED_BOX_H = 70  # Taller boxes for bigger text
+    GAP_BETWEEN_COLS = 100
     
     num_seasons = len(grid_df.columns)
-    grid_width = num_seasons * (FIXED_BOX_W + 12)
-    required_width = 60 + left_col_w + GAP_BETWEEN_COLS + grid_width + 100
-    canvas_w = max(1920, required_width) 
+    grid_width = num_seasons * (FIXED_BOX_W + 16)
+    required_width = 80 + left_col_w + GAP_BETWEEN_COLS + grid_width + 100
+    canvas_w = max(2200, required_width) 
+
     n_eps = grid_df.shape[0]
-    base_top = 350
-    spacing = FIXED_BOX_H + 12
-    min_required_h = base_top + n_eps * spacing + 300
-    canvas_h = max(1080, min_required_h)
+    base_top = 450
+    spacing = FIXED_BOX_H + 16
+    min_required_h = base_top + n_eps * spacing + 400
+    canvas_h = max(1200, min_required_h)
 
     canvas = Image.new("RGB", (canvas_w, canvas_h), (0, 0, 0))
     draw = ImageDraw.Draw(canvas)
 
-    # Use the downloaded Roboto fonts!
-    f_reg = load_font(["Roboto-Regular.ttf", "arial.ttf"], 20)
-    title_font = load_font(["Roboto-Bold.ttf", "arialbd.ttf"], 72)
-    font_year = load_font(["Roboto-Regular.ttf", "arial.ttf"], 28)
-    font_rating = load_font(["Roboto-Bold.ttf", "arialbd.ttf"], 56)
-    box_font = load_font(["Roboto-Bold.ttf", "arialbd.ttf"], 22)
+    # --- UPSCALED FONTS ---
+    # We double the font sizes so they look crisp when the image is shrunk
+    f_reg = load_font(["Roboto-Regular.ttf", "arial.ttf"], 36)
+    title_font = load_font(["Roboto-Bold.ttf", "arialbd.ttf"], 110)
+    font_year = load_font(["Roboto-Regular.ttf", "arial.ttf"], 48)
+    font_rating = load_font(["Roboto-Bold.ttf", "arialbd.ttf"], 90)
+    box_font = load_font(["Roboto-Bold.ttf", "arialbd.ttf"], 40) # Big numbers inside boxes
 
     if poster_img:
         bg = cover_crop(poster_img, canvas_w, canvas_h)
         if bg:
             canvas.paste(bg, (0, 0))
-            overlay = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 150))
+            overlay = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 160)) # Slightly darker for contrast
             canvas.paste(overlay, (0, 0), overlay)
 
-    x_left = 60
-    y = 40
+    x_left = 80
+    y = 60
+    
     draw_text_rich(draw, (x_left, y), "TV Series", f_reg, (245, 245, 245))
-    y += 28
-    title_lines = wrap_text_pixel(draw, title, title_font, max_w=550)
+    y += 45
+
+    title_lines = wrap_text_pixel(draw, title, title_font, max_w=750)
     for line in title_lines:
         draw_text_rich(draw, (x_left, y), line, title_font, (245, 245, 245))
-        y += 75 
-    y += 10
+        y += 115 
+
+    y += 15
     draw_text_rich(draw, (x_left, y), f"({year_range})", font_year, (245, 245, 245))
-    y += 70
-    draw_star(draw, (x_left + 28, y + 25), 28, (255, 200, 0))
-    draw_text_rich(draw, (x_left + 70, y), f"{main_rating}/10", font_rating, (245, 245, 245))
-    y += 75
-    wrapper = textwrap.TextWrapper(width=50)
+    y += 90
+    
+    draw_star(draw, (x_left + 40, y + 35), 40, (255, 200, 0))
+    draw_text_rich(draw, (x_left + 100, y), f"{main_rating}/10", font_rating, (245, 245, 245))
+    y += 110
+
+    wrapper = textwrap.TextWrapper(width=45) # Adjusted wrap
     lines = wrapper.wrap(summary)[:8]
     for line in lines:
         draw_text_rich(draw, (x_left, y), line, f_reg, (210, 210, 210))
-        y += 30
+        y += 45
 
     grid_start_x = x_left + left_col_w + GAP_BETWEEN_COLS
     seasons = list(grid_df.columns)
+
     legend = [("Awesome", (0, 100, 0)), ("Great", (144, 238, 144)), ("Good", (212, 175, 55)), ("Bad", (220, 0, 0)), ("Garbage", (128, 0, 128))]
     lx = grid_start_x
     ly = HEADER_Y - 60
+    
     for name, col in legend:
-        draw.ellipse((lx, ly, lx+12, ly+12), fill=col)
-        draw_text_rich(draw, (lx+20, ly+6), name, f_reg, (245,245,245), anchor="lm")
+        draw.ellipse((lx, ly, lx+24, ly+24), fill=col)
+        draw_text_rich(draw, (lx+35, ly+12), name, f_reg, (245,245,245), anchor="lm")
         text_w = draw.textlength(name, font=f_reg)
-        lx += (20 + text_w + 40)
+        lx += (35 + text_w + 50)
 
     for j, s in enumerate(seasons):
-        sx = grid_start_x + j * (FIXED_BOX_W + 12)
-        box = [sx, HEADER_Y - 16, sx + FIXED_BOX_W, HEADER_Y + 16]
-        draw.rounded_rectangle(box, radius=10, fill=(40, 40, 40))
+        sx = grid_start_x + j * (FIXED_BOX_W + 16)
+        box = [sx, HEADER_Y - 25, sx + FIXED_BOX_W, HEADER_Y + 25]
+        draw.rounded_rectangle(box, radius=15, fill=(40, 40, 40))
         draw_text_rich(draw, (sx + FIXED_BOX_W / 2, HEADER_Y), f"S{s}", f_reg, (245, 245, 245), anchor="mm")
 
-    row_top = HEADER_Y + 40 
+    row_top = HEADER_Y + 60
+    
     for i, ep in enumerate(grid_df.index):
-        ry = row_top + i * (FIXED_BOX_H + 12)
-        ebox = [grid_start_x - 66, ry, grid_start_x - 66 + 48, ry + FIXED_BOX_H]
-        draw.rounded_rectangle(ebox, 6, (40, 40, 40))
-        draw_text_rich(draw, (ebox[0] + 24, ebox[1] + FIXED_BOX_H / 2), f"E{ep}", f_reg, (245, 245, 245), anchor="mm")
+        ry = row_top + i * (FIXED_BOX_H + 16)
+        ebox = [grid_start_x - 100, ry, grid_start_x - 100 + 80, ry + FIXED_BOX_H]
+        draw.rounded_rectangle(ebox, 10, (40, 40, 40))
+        draw_text_rich(draw, (ebox[0] + 40, ebox[1] + FIXED_BOX_H / 2), f"E{ep}", f_reg, (245, 245, 245), anchor="mm")
+
         for j, s in enumerate(seasons):
-            sx = grid_start_x + j * (FIXED_BOX_W + 12)
+            sx = grid_start_x + j * (FIXED_BOX_W + 16)
             val = grid_df.loc[ep, s]
             box = [sx, ry, sx + FIXED_BOX_W, ry + FIXED_BOX_H]
             fill = color_for_score(val)
-            draw.rounded_rectangle(box, radius=10, fill=fill, outline=(12, 12, 12), width=2)
+            draw.rounded_rectangle(box, radius=12, fill=fill, outline=(12, 12, 12), width=3)
             txt = f"{val:.1f}" if pd.notna(val) else "-"
             tcol = text_color_for_bg(fill)
             draw_text_rich(draw, (sx + FIXED_BOX_W / 2, ry + FIXED_BOX_H / 2), txt, box_font, tcol, anchor="mm", shadow=None)
 
-    sep = row_top + n_eps * (FIXED_BOX_H + 12) + 8
-    draw.line([(grid_start_x - 80, sep), (grid_start_x + len(seasons) * (FIXED_BOX_W + 12), sep)], fill=(60, 60, 60), width=2)
-    avg_y = sep + 12
-    a = [grid_start_x - 66, avg_y, grid_start_x - 66 + 48, avg_y + FIXED_BOX_H]
-    draw.rounded_rectangle(a, 8, (40, 40, 40))
-    draw_text_rich(draw, (a[0] + 24, avg_y + FIXED_BOX_H / 2), "Avg", f_reg, (245, 245, 245), anchor="mm")
+    sep = row_top + n_eps * (FIXED_BOX_H + 16) + 12
+    draw.line([(grid_start_x - 100, sep), (grid_start_x + len(seasons) * (FIXED_BOX_W + 16), sep)], fill=(60, 60, 60), width=3)
+    avg_y = sep + 20
+    a = [grid_start_x - 100, avg_y, grid_start_x - 100 + 80, avg_y + FIXED_BOX_H]
+    draw.rounded_rectangle(a, 12, (40, 40, 40))
+    draw_text_rich(draw, (a[0] + 40, avg_y + FIXED_BOX_H / 2), "Avg", f_reg, (245, 245, 245), anchor="mm")
+
     for j, s in enumerate(seasons):
-        sx = grid_start_x + j * (FIXED_BOX_W + 12)
+        sx = grid_start_x + j * (FIXED_BOX_W + 16)
         vals = pd.to_numeric(grid_df[s], errors='coerce').dropna()
         avg = round(vals.mean(), 1) if len(vals) > 0 else None
-        b = [sx, avg_y, sx + 110, avg_y + FIXED_BOX_H]
+        b = [sx, avg_y, sx + FIXED_BOX_W, avg_y + FIXED_BOX_H]
         fill = color_for_score(avg)
         draw.rounded_rectangle(b, FIXED_BOX_H // 2, fill)
         txt = f"{avg:.1f}" if avg is not None else "—"
         tcol = text_color_for_bg(fill)
-        draw_text_rich(draw, (sx + 55, avg_y + FIXED_BOX_H / 2), txt, box_font, tcol, anchor="mm", shadow=None)
+        draw_text_rich(draw, (sx + FIXED_BOX_W / 2, avg_y + FIXED_BOX_H / 2), txt, box_font, tcol, anchor="mm", shadow=None)
+
     return canvas
 
 # ==========================================
@@ -409,27 +416,22 @@ if query:
     if results.empty:
         st.warning(f"No shows found for '{query}'.")
     else:
-        # Show Results in a stylish grid
         st.markdown("### Select Show:")
         cols = st.columns(3)
         for i, (idx, row) in enumerate(results.iterrows()):
             with cols[i % 3]:
-                # This makes the whole area clickable via the button
                 label = f"{row['primaryTitle']} ({row['startYear']})"
                 if st.button(label, key=f"btn_{row['tconst']}", use_container_width=True):
                     st.session_state['selected_show'] = row.to_dict()
 
-# If a show is selected, Render the "Hero" Section
 if 'selected_show' in st.session_state:
     row = st.session_state['selected_show']
     target_id = row['tconst']
     
     st.divider()
     
-    # FETCH DATA
     poster_url, summary = get_metadata(target_id, quality="original")
     
-    # HERO LAYOUT
     hero_col1, hero_col2 = st.columns([1, 2])
     
     with hero_col1:
@@ -442,7 +444,6 @@ if 'selected_show' in st.session_state:
         st.markdown(f"# {row['primaryTitle']}")
         st.markdown(f"#### {row['startYear']} • {row['genres']}")
         
-        # Action Buttons
         c1, c2 = st.columns(2)
         do_db = c1.button("⚡ Fast (DB)", key="act_db", use_container_width=True)
         do_live = c2.button("🌍 Live (Web)", key="act_live", use_container_width=True)
@@ -450,11 +451,9 @@ if 'selected_show' in st.session_state:
         use_live = False
         if do_live: use_live = True
         
-        # Summary Box
         if summary:
             st.markdown(f"_{summary}_")
 
-    # GENERATE CHART
     if do_db or do_live or 'chart_generated' not in st.session_state:
         with st.spinner("Generating Heatmap..."):
             grid, rating, src_msg = get_show_data(target_id, force_live=use_live)
@@ -462,7 +461,6 @@ if 'selected_show' in st.session_state:
                 if "Live" in src_msg: st.success(f"✅ Data Source: {src_msg}")
                 else: st.caption(f"ℹ️ Data Source: {src_msg}")
                 
-                # Fetch image for chart background
                 poster_img = None
                 if poster_url:
                     try:
@@ -473,12 +471,10 @@ if 'selected_show' in st.session_state:
                 final_img = render_page(grid, poster_img, row['primaryTitle'], row['startYear'], summary, rating)
                 st.image(final_img, use_container_width=True)
                 
-                # Download
                 buf = BytesIO()
                 final_img.save(buf, format="PNG")
                 st.download_button("⬇️ Download High-Res Image", data=buf.getvalue(), file_name=f"{row['primaryTitle']}.png", mime="image/png", use_container_width=True)
                 
-                # RECOMMENDATIONS
                 st.divider()
                 st.subheader("You might also like:")
                 rec_df = get_recommendations(target_id, row['genres'])

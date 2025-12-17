@@ -13,13 +13,13 @@ from fake_useragent import UserAgent
 DB_FILE = "tv_shows.db"
 
 # ==========================================
-# 🛠️ CRITICAL FIX: Font Loader (Invisible)
+# 🛠️ FONT LOADER (Restores Arial-like look)
 # ==========================================
 def install_fonts():
-    # Downloads Roboto so text isn't pixelated on the server
+    # We download Liberation Sans, which is the exact metric equivalent of Arial for Linux
     fonts = {
-        "Roboto-Regular.ttf": "https://github.com/google/fonts/raw/main/apache/roboto/Roboto-Regular.ttf",
-        "Roboto-Bold.ttf": "https://github.com/google/fonts/raw/main/apache/roboto/Roboto-Bold.ttf"
+        "LiberationSans-Regular.ttf": "https://github.com/google/fonts/raw/main/ofl/liberationsans/LiberationSans-Regular.ttf",
+        "LiberationSans-Bold.ttf": "https://github.com/google/fonts/raw/main/ofl/liberationsans/LiberationSans-Bold.ttf"
     }
     for name, url in fonts.items():
         if not os.path.exists(name):
@@ -32,39 +32,7 @@ def install_fonts():
 install_fonts()
 
 # ==========================================
-# 🎨 CUSTOM CSS (The Pro Look)
-# ==========================================
-st.set_page_config(layout="wide", page_title="TV Heatmap", page_icon="📺")
-
-st.markdown("""
-<style>
-    .block-container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
-        max-width: 95% !important;
-    }
-    header {visibility: hidden;}
-    .main-title {
-        font-size: 3.5rem;
-        font-weight: 800;
-        background: -webkit-linear-gradient(45deg, #FF4B2B, #FF416C);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 0.5rem;
-    }
-    .rec-title {
-        font-size: 1.1rem;
-        font-weight: 600;
-        margin-top: 5px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# ==========================================
-# 🎨 VISUALIZATION ENGINE (RESTORED ORIGINAL)
+# 🎨 VISUALIZATION ENGINE (ORIGINAL SMART CROP)
 # ==========================================
 
 def strip_html(s):
@@ -96,9 +64,11 @@ def text_color_for_bg(rgb):
     r, g, b = rgb
     return (0, 0, 0) if (0.299 * r + 0.587 * g + 0.114 * b) > 150 else (255, 255, 255)
 
+# --- THIS IS THE CRITICAL FUNCTION FOR POSTERS ---
 def cover_crop(img, W, H):
     if img is None: return None
     sw, sh = img.size
+    # This math ensures the image fills the area WITHOUT stretching
     scale = max(W / sw, H / sh)
     nw, nh = int(sw * scale), int(sh * scale)
     img2 = img.resize((nw, nh), Image.LANCZOS)
@@ -114,8 +84,8 @@ def draw_text_rich(draw, pos, text, font, fill, shadow=(0, 0, 0, 200), shadow_of
     draw.text((x, y), text, font=font, fill=fill, anchor=anchor)
 
 def load_font(name_list, size):
-    # Priorities Roboto for Cloud, falls back to Arial for Local
-    priorities = ["Roboto-Regular.ttf", "Roboto-Bold.ttf"] + name_list
+    # Tries to load the downloaded "Arial-lookalike" first
+    priorities = ["LiberationSans-Regular.ttf", "LiberationSans-Bold.ttf", "arial.ttf", "arialbd.ttf"] + name_list
     for name in priorities:
         try:
             return ImageFont.truetype(name, size)
@@ -144,7 +114,7 @@ def wrap_text_pixel(draw, text, font, max_w):
     return lines
 
 def render_page(grid_df, poster_img, title, year_range, summary, main_rating):
-    # RESTORED: Original Dimensions
+    # --- EXACT ORIGINAL DIMENSIONS ---
     left_col_w = 600
     HEADER_Y = 90
     FIXED_BOX_W = 110
@@ -155,6 +125,7 @@ def render_page(grid_df, poster_img, title, year_range, summary, main_rating):
     grid_width = num_seasons * (FIXED_BOX_W + 12)
     required_width = 60 + left_col_w + GAP_BETWEEN_COLS + grid_width + 100
     canvas_w = max(1920, required_width) 
+    
     n_eps = grid_df.shape[0]
     base_top = 350
     spacing = FIXED_BOX_H + 12
@@ -164,12 +135,12 @@ def render_page(grid_df, poster_img, title, year_range, summary, main_rating):
     canvas = Image.new("RGB", (canvas_w, canvas_h), (0, 0, 0))
     draw = ImageDraw.Draw(canvas)
 
-    # RESTORED: Original Fonts (Using Roboto names to fix cloud issue)
-    f_reg = load_font(["Roboto-Regular.ttf", "arial.ttf"], 20)
-    title_font = load_font(["Roboto-Bold.ttf", "arialbd.ttf"], 72)
-    font_year = load_font(["Roboto-Regular.ttf", "arial.ttf"], 28)
-    font_rating = load_font(["Roboto-Bold.ttf", "arialbd.ttf"], 56)
-    box_font = load_font(["Roboto-Bold.ttf", "arialbd.ttf"], 22)
+    # --- EXACT ORIGINAL FONTS (Mapped to Liberation Sans for Cloud) ---
+    f_reg = load_font(["LiberationSans-Regular.ttf", "arial.ttf"], 20)
+    title_font = load_font(["LiberationSans-Bold.ttf", "arialbd.ttf"], 72)
+    font_year = load_font(["LiberationSans-Regular.ttf", "arial.ttf"], 28)
+    font_rating = load_font(["LiberationSans-Bold.ttf", "arialbd.ttf"], 56)
+    box_font = load_font(["LiberationSans-Bold.ttf", "arialbd.ttf"], 22)
 
     if poster_img:
         bg = cover_crop(poster_img, canvas_w, canvas_h)
@@ -282,7 +253,7 @@ def get_recommendations(current_tconst, genres):
 def search_shows(query):
     conn = sqlite3.connect(DB_FILE)
     parts = query.split()
-    # CRITICAL FIX: Sort by VOTES so popular shows appear first!
+    # Corrected Sort: Popularity First
     sql = "SELECT tconst, primaryTitle, startYear, numVotes, genres FROM shows WHERE "
     conditions = []
     params = []
@@ -299,7 +270,6 @@ def search_shows(query):
     return df
 
 def scrape_live_ratings(imdb_id):
-    # (Same scraping logic as before)
     data = []
     ua = UserAgent()
     headers = {"User-Agent": ua.chrome}
@@ -392,10 +362,40 @@ def get_metadata(imdb_id, quality="medium"):
     return poster_url, summary
 
 # ==========================================
-# 🚀 PRO INTERFACE (RESTORED & FIXED)
+# 🚀 PRO INTERFACE (RESTORED CSS + FIXES)
 # ==========================================
 
+st.set_page_config(layout="wide", page_title="TV Heatmap", page_icon="📺")
+
+st.markdown("""
+<style>
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+        max-width: 95% !important;
+    }
+    header {visibility: hidden;}
+    .main-title {
+        font-size: 3.5rem;
+        font-weight: 800;
+        background: -webkit-linear-gradient(45deg, #FF4B2B, #FF416C);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.5rem;
+    }
+    .rec-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-top: 5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 st.markdown('<p class="main-title">🔥 TV HEATMAP</p>', unsafe_allow_html=True)
+
 if not os.path.exists(DB_FILE):
     st.error("⚠️ Database missing! Please run 'build_db.py' first.")
     st.stop()
@@ -407,7 +407,6 @@ if query:
     if results.empty:
         st.warning(f"No shows found for '{query}'.")
     else:
-        # Show Results in a stylish grid
         st.markdown("### Select Show:")
         cols = st.columns(3)
         for i, (idx, row) in enumerate(results.iterrows()):
@@ -416,17 +415,14 @@ if query:
                 if st.button(label, key=f"btn_{row['tconst']}", use_container_width=True):
                     st.session_state['selected_show'] = row.to_dict()
 
-# If a show is selected, Render the "Hero" Section
 if 'selected_show' in st.session_state:
     row = st.session_state['selected_show']
     target_id = row['tconst']
     
     st.divider()
     
-    # FETCH DATA
     poster_url, summary = get_metadata(target_id, quality="original")
     
-    # HERO LAYOUT
     hero_col1, hero_col2 = st.columns([1, 2])
     
     with hero_col1:
@@ -439,7 +435,6 @@ if 'selected_show' in st.session_state:
         st.markdown(f"# {row['primaryTitle']}")
         st.markdown(f"#### {row['startYear']} • {row['genres']}")
         
-        # Action Buttons
         c1, c2 = st.columns(2)
         do_db = c1.button("⚡ Fast (DB)", key="act_db", use_container_width=True)
         do_live = c2.button("🌍 Live (Web)", key="act_live", use_container_width=True)
@@ -447,11 +442,9 @@ if 'selected_show' in st.session_state:
         use_live = False
         if do_live: use_live = True
         
-        # Summary Box
         if summary:
             st.markdown(f"_{summary}_")
 
-    # GENERATE CHART
     if do_db or do_live or 'chart_generated' not in st.session_state:
         with st.spinner("Generating Heatmap..."):
             grid, rating, src_msg = get_show_data(target_id, force_live=use_live)
@@ -459,7 +452,6 @@ if 'selected_show' in st.session_state:
                 if "Live" in src_msg: st.success(f"✅ Data Source: {src_msg}")
                 else: st.caption(f"ℹ️ Data Source: {src_msg}")
                 
-                # Fetch image for chart background
                 poster_img = None
                 if poster_url:
                     try:
@@ -469,15 +461,13 @@ if 'selected_show' in st.session_state:
                 
                 final_img = render_page(grid, poster_img, row['primaryTitle'], row['startYear'], summary, rating)
                 
-                # CRITICAL FIX: Save to buffer before displaying to prevent OSError
+                # CRITICAL FIX: Safe Buffer to prevent OSError
                 buf = BytesIO()
                 final_img.save(buf, format="PNG")
                 st.image(buf, use_container_width=True)
                 
-                # Download
                 st.download_button("⬇️ Download High-Res Image", data=buf.getvalue(), file_name=f"{row['primaryTitle']}.png", mime="image/png", use_container_width=True)
                 
-                # RECOMMENDATIONS
                 st.divider()
                 st.subheader("You might also like:")
                 rec_df = get_recommendations(target_id, row['genres'])

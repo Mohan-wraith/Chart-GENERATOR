@@ -3,7 +3,7 @@ import sqlite3
 import pandas as pd
 import numpy as np
 import requests
-import os, math, textwrap, re, json
+import os, math, textwrap, re, time, json
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 from bs4 import BeautifulSoup
@@ -13,26 +13,55 @@ from fake_useragent import UserAgent
 DB_FILE = "tv_shows.db"
 
 # ==========================================
-# 🛠️ FONT LOADER (Restores Arial-like look)
+# 🎨 CUSTOM CSS (THE "PRO" LOOK)
 # ==========================================
-def install_fonts():
-    # We download Liberation Sans, which is the exact metric equivalent of Arial for Linux
-    fonts = {
-        "LiberationSans-Regular.ttf": "https://github.com/google/fonts/raw/main/ofl/liberationsans/LiberationSans-Regular.ttf",
-        "LiberationSans-Bold.ttf": "https://github.com/google/fonts/raw/main/ofl/liberationsans/LiberationSans-Bold.ttf"
+st.set_page_config(layout="wide", page_title="TV Heatmap", page_icon="📺")
+
+st.markdown("""
+<style>
+    /* Make the app full width and remove padding */
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+        max-width: 95% !important;
     }
-    for name, url in fonts.items():
-        if not os.path.exists(name):
-            try:
-                r = requests.get(url, timeout=5)
-                with open(name, "wb") as f:
-                    f.write(r.content)
-            except: pass
-
-install_fonts()
+    
+    /* Hide standard Streamlit header */
+    header {visibility: hidden;}
+    
+    /* Stylish Title */
+    .main-title {
+        font-size: 3.5rem;
+        font-weight: 800;
+        background: -webkit-linear-gradient(45deg, #FF4B2B, #FF416C);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Card-like background for show details */
+    .show-card {
+        background-color: #1E1E1E;
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        margin-bottom: 20px;
+    }
+    
+    /* Recommendation Text */
+    .rec-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-top: 5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # ==========================================
-# 🎨 VISUALIZATION ENGINE (ORIGINAL SMART CROP)
+# 🎨 VISUALIZATION ENGINE
 # ==========================================
 
 def strip_html(s):
@@ -64,11 +93,9 @@ def text_color_for_bg(rgb):
     r, g, b = rgb
     return (0, 0, 0) if (0.299 * r + 0.587 * g + 0.114 * b) > 150 else (255, 255, 255)
 
-# --- THIS IS THE CRITICAL FUNCTION FOR POSTERS ---
 def cover_crop(img, W, H):
     if img is None: return None
     sw, sh = img.size
-    # This math ensures the image fills the area WITHOUT stretching
     scale = max(W / sw, H / sh)
     nw, nh = int(sw * scale), int(sh * scale)
     img2 = img.resize((nw, nh), Image.LANCZOS)
@@ -84,9 +111,7 @@ def draw_text_rich(draw, pos, text, font, fill, shadow=(0, 0, 0, 200), shadow_of
     draw.text((x, y), text, font=font, fill=fill, anchor=anchor)
 
 def load_font(name_list, size):
-    # Tries to load the downloaded "Arial-lookalike" first
-    priorities = ["LiberationSans-Regular.ttf", "LiberationSans-Bold.ttf", "arial.ttf", "arialbd.ttf"] + name_list
-    for name in priorities:
+    for name in name_list:
         try:
             return ImageFont.truetype(name, size)
         except:
@@ -114,7 +139,6 @@ def wrap_text_pixel(draw, text, font, max_w):
     return lines
 
 def render_page(grid_df, poster_img, title, year_range, summary, main_rating):
-    # --- EXACT ORIGINAL DIMENSIONS ---
     left_col_w = 600
     HEADER_Y = 90
     FIXED_BOX_W = 110
@@ -135,12 +159,11 @@ def render_page(grid_df, poster_img, title, year_range, summary, main_rating):
     canvas = Image.new("RGB", (canvas_w, canvas_h), (0, 0, 0))
     draw = ImageDraw.Draw(canvas)
 
-    # --- EXACT ORIGINAL FONTS (Mapped to Liberation Sans for Cloud) ---
-    f_reg = load_font(["LiberationSans-Regular.ttf", "arial.ttf"], 20)
-    title_font = load_font(["LiberationSans-Bold.ttf", "arialbd.ttf"], 72)
-    font_year = load_font(["LiberationSans-Regular.ttf", "arial.ttf"], 28)
-    font_rating = load_font(["LiberationSans-Bold.ttf", "arialbd.ttf"], 56)
-    box_font = load_font(["LiberationSans-Bold.ttf", "arialbd.ttf"], 22)
+    f_reg = load_font(["arial.ttf", "LiberationSans-Regular.ttf", "DejaVuSans.ttf"], 20)
+    title_font = load_font(["arialbd.ttf", "LiberationSans-Bold.ttf", "DejaVuSans-Bold.ttf", "arial.ttf"], 72)
+    font_year = load_font(["arial.ttf", "LiberationSans-Regular.ttf", "DejaVuSans.ttf"], 28)
+    font_rating = load_font(["arialbd.ttf", "LiberationSans-Bold.ttf", "DejaVuSans-Bold.ttf", "arial.ttf"], 56)
+    box_font = load_font(["arialbd.ttf", "LiberationSans-Bold.ttf", "DejaVuSans-Bold.ttf", "arial.ttf"], 22)
 
     if poster_img:
         bg = cover_crop(poster_img, canvas_w, canvas_h)
@@ -233,8 +256,9 @@ def get_recommendations(current_tconst, genres):
     for g in current_genres:
         score_query.append(f"(CASE WHEN s.genres LIKE '%{g}%' THEN 1 ELSE 0 END)")
     total_score_sql = " + ".join(score_query)
+    # FIX: Added 's.genres' to SELECT to prevent KeyError crash
     sql = f"""
-    SELECT s.tconst, s.primaryTitle, s.startYear, s.numVotes, r.averageRating,
+    SELECT s.tconst, s.primaryTitle, s.startYear, s.numVotes, s.genres, r.averageRating,
            ({total_score_sql}) as match_score
     FROM shows s
     JOIN ratings r ON s.tconst = r.tconst
@@ -253,7 +277,6 @@ def get_recommendations(current_tconst, genres):
 def search_shows(query):
     conn = sqlite3.connect(DB_FILE)
     parts = query.split()
-    # Corrected Sort: Popularity First
     sql = "SELECT tconst, primaryTitle, startYear, numVotes, genres FROM shows WHERE "
     conditions = []
     params = []
@@ -362,45 +385,18 @@ def get_metadata(imdb_id, quality="medium"):
     return poster_url, summary
 
 # ==========================================
-# 🚀 PRO INTERFACE (RESTORED CSS + FIXES)
+# 🚀 PRO INTERFACE
 # ==========================================
 
-st.set_page_config(layout="wide", page_title="TV Heatmap", page_icon="📺")
-
-st.markdown("""
-<style>
-    .block-container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
-        max-width: 95% !important;
-    }
-    header {visibility: hidden;}
-    .main-title {
-        font-size: 3.5rem;
-        font-weight: 800;
-        background: -webkit-linear-gradient(45deg, #FF4B2B, #FF416C);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 0.5rem;
-    }
-    .rec-title {
-        font-size: 1.1rem;
-        font-weight: 600;
-        margin-top: 5px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-</style>
-""", unsafe_allow_html=True)
-
 st.markdown('<p class="main-title">🔥 TV HEATMAP</p>', unsafe_allow_html=True)
-
 if not os.path.exists(DB_FILE):
     st.error("⚠️ Database missing! Please run 'build_db.py' first.")
     st.stop()
 
 query = st.text_input("", placeholder="🔍 Search for a show (e.g. Arcane, Breaking Bad)...")
+
+# 1. CREATE A MAIN PLACEHOLDER FOR CONTENT (FIXES GHOSTING)
+main_display = st.empty()
 
 if query:
     results = search_shows(query)
@@ -412,71 +408,91 @@ if query:
         for i, (idx, row) in enumerate(results.iterrows()):
             with cols[i % 3]:
                 label = f"{row['primaryTitle']} ({row['startYear']})"
+                # 2. CLICKING A SEARCH RESULT UPDATES THE SESSION AND RERUNS
                 if st.button(label, key=f"btn_{row['tconst']}", use_container_width=True):
                     st.session_state['selected_show'] = row.to_dict()
+                    st.rerun()
 
+# 3. IF A SHOW IS SELECTED, DISPLAY EVERYTHING INSIDE THE PLACEHOLDER
 if 'selected_show' in st.session_state:
-    row = st.session_state['selected_show']
-    target_id = row['tconst']
-    
-    st.divider()
-    
-    poster_url, summary = get_metadata(target_id, quality="original")
-    
-    hero_col1, hero_col2 = st.columns([1, 2])
-    
-    with hero_col1:
-        if poster_url:
-            st.image(poster_url, use_container_width=True)
-        else:
-            st.markdown("📺 No Poster")
+    with main_display.container():
+        row = st.session_state['selected_show']
+        target_id = row['tconst']
+        
+        st.divider()
+        
+        # FETCH DATA
+        poster_url, summary = get_metadata(target_id, quality="original")
+        
+        # HERO LAYOUT
+        hero_col1, hero_col2 = st.columns([1, 2])
+        
+        with hero_col1:
+            if poster_url:
+                st.image(poster_url, use_container_width=True)
+            else:
+                st.markdown("📺 No Poster")
             
-    with hero_col2:
-        st.markdown(f"# {row['primaryTitle']}")
-        st.markdown(f"#### {row['startYear']} • {row['genres']}")
-        
-        c1, c2 = st.columns(2)
-        do_db = c1.button("⚡ Fast (DB)", key="act_db", use_container_width=True)
-        do_live = c2.button("🌍 Live (Web)", key="act_live", use_container_width=True)
-        
-        use_live = False
-        if do_live: use_live = True
-        
-        if summary:
-            st.markdown(f"_{summary}_")
+        with hero_col2:
+            st.markdown(f"# {row['primaryTitle']}")
+            # SAFE GENRE DISPLAY
+            genres = row.get('genres', 'Unknown')
+            start_year = row.get('startYear', '????')
+            st.markdown(f"#### {start_year} • {genres}")
+            
+            # Action Buttons
+            c1, c2 = st.columns(2)
+            do_db = c1.button("⚡ Fast (DB)", key="act_db", use_container_width=True)
+            do_live = c2.button("🌍 Live (Web)", key="act_live", use_container_width=True)
+            
+            use_live = False
+            if do_live: use_live = True
+            
+            # Summary Box
+            if summary:
+                st.markdown(f"_{summary}_")
 
-    if do_db or do_live or 'chart_generated' not in st.session_state:
-        with st.spinner("Generating Heatmap..."):
-            grid, rating, src_msg = get_show_data(target_id, force_live=use_live)
-            if grid is not None:
-                if "Live" in src_msg: st.success(f"✅ Data Source: {src_msg}")
-                else: st.caption(f"ℹ️ Data Source: {src_msg}")
-                
-                poster_img = None
-                if poster_url:
-                    try:
-                        resp = requests.get(poster_url)
-                        poster_img = Image.open(BytesIO(resp.content)).convert("RGB")
-                    except: pass
-                
-                final_img = render_page(grid, poster_img, row['primaryTitle'], row['startYear'], summary, rating)
-                
-                # CRITICAL FIX: Safe Buffer to prevent OSError
-                buf = BytesIO()
-                final_img.save(buf, format="PNG")
-                st.image(buf, use_container_width=True)
-                
-                st.download_button("⬇️ Download High-Res Image", data=buf.getvalue(), file_name=f"{row['primaryTitle']}.png", mime="image/png", use_container_width=True)
-                
-                st.divider()
-                st.subheader("You might also like:")
-                rec_df = get_recommendations(target_id, row['genres'])
-                
-                if not rec_df.empty:
-                    rcols = st.columns(4)
-                    for idx, rec_row in rec_df.iterrows():
-                        with rcols[idx]:
-                            rec_poster, _ = get_metadata(rec_row['tconst'], quality="medium")
-                            if rec_poster: st.image(rec_poster, use_container_width=True)
-                            st.markdown(f"<div class='rec-title'>{rec_row['primaryTitle']}</div>", unsafe_allow_html=True)
-                            st.caption(f"⭐ {rec_row['averageRating']}")
+        # GENERATE CHART
+        if do_db or do_live or 'selected_show' in st.session_state:
+            with st.spinner("Generating Heatmap..."):
+                grid, rating, src_msg = get_show_data(target_id, force_live=use_live)
+                if grid is not None:
+                    if "Live" in src_msg: st.success(f"✅ Data Source: {src_msg}")
+                    else: st.caption(f"ℹ️ Data Source: {src_msg}")
+                    
+                    poster_img = None
+                    if poster_url:
+                        try:
+                            resp = requests.get(poster_url)
+                            poster_img = Image.open(BytesIO(resp.content)).convert("RGB")
+                        except: pass
+                    
+                    final_img = render_page(grid, poster_img, row['primaryTitle'], row.get('startYear', '????'), summary, rating)
+                    st.image(final_img, use_container_width=True)
+                    
+                    # Download
+                    buf = BytesIO()
+                    final_img.save(buf, format="PNG")
+                    st.download_button("⬇️ Download High-Res Image", data=buf.getvalue(), file_name=f"{row['primaryTitle']}.png", mime="image/png", use_container_width=True)
+                    
+                    # 4. RECOMMENDATIONS (CLICKABLE TITLE)
+                    st.divider()
+                    st.subheader("You might also like:")
+                    
+                    current_genres = row.get('genres', 'Unknown')
+                    rec_df = get_recommendations(target_id, current_genres)
+                    
+                    if not rec_df.empty:
+                        rcols = st.columns(4)
+                        for idx, rec_row in rec_df.iterrows():
+                            with rcols[idx]:
+                                rec_poster, _ = get_metadata(rec_row['tconst'], quality="medium")
+                                if rec_poster: st.image(rec_poster, use_container_width=True)
+                                else: st.markdown("📺 *No Poster*")
+                                
+                                st.caption(f"⭐ {rec_row['averageRating']}")
+                                
+                                # CLICKABLE TITLE BUTTON
+                                if st.button(f"▶ {rec_row['primaryTitle']}", key=f"rec_{rec_row['tconst']}", use_container_width=True):
+                                    st.session_state['selected_show'] = rec_row.to_dict()
+                                    st.rerun()

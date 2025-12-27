@@ -49,3 +49,60 @@ To run this application locally, follow these steps:
 ```bash
 git clone [https://github.com/yourusername/imdb-heatmap-generator.git](https://github.com/yourusername/imdb-heatmap-generator.git)
 cd imdb-heatmap-generator
+
+### 2. Install Dependencies
+Ensure you have the required libraries installed:
+```bash
+pip install streamlit pandas numpy requests beautifulsoup4 fake-useragent Pillow
+```
+
+### 3. Build the Database
+The app relies on a local SQLite database for fast searching. Run the build script to initialize `tv_shows.db`.
+```bash
+python build_db.py
+```
+*(Note: Ensure you have the raw IMDb datasets or the scraper configured in `build_db.py` before running this step.)*
+
+### 4. Run the App
+```bash
+streamlit run app.py
+```
+
+## 📂 Project Structure
+
+```text
+├── app.py              # Main application logic & UI rendering
+├── build_db.py         # Script to initialize/update the SQLite database
+├── tv_shows.db         # Local SQLite database (generated)
+├── requirements.txt    # Python dependencies
+└── README.md           # Project documentation
+```
+
+## 🧠 How It Works
+
+1.  **User Input:** The user searches for a show (e.g., "Breaking Bad").
+2.  **Data Retrieval:**
+    * The app checks `tv_shows.db` for the show ID (`tconst`).
+    * If "Live (Web)" is selected, it scrapes IMDb using a session-based request with header rotation to bypass basic bot detection.
+3.  **Data Processing:** Ratings are normalized, and missing data points are handled gracefully.
+4.  **Rendering:** The `render_page()` function creates a blank canvas and draws the heatmap pixel-by-pixel, calculating layout dynamically based on the number of seasons and episodes.
+5.  **Output:** A high-quality PNG is displayed and offered for download.
+
+## 🤝 Contributing
+
+Contributions are welcome! Please fork the repository and submit a pull request for any enhancements (e.g., adding Rotten Tomatoes support, interactive tooltips, etc.).
+
+1.  Fork the Project
+2.  Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3.  Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4.  Push to the Branch (`git push origin feature/AmazingFeature`)
+5.  Open a Pull Request
+
+## 📄 License
+
+Distributed under the MIT License. See `LICENSE` for more information.
+
+## 👏 Acknowledgments
+
+* **IMDb:** For the comprehensive rating data.
+* **TVMaze:** For providing excellent API access to show posters and summaries.

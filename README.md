@@ -29,9 +29,11 @@ It operates on a **Hybrid Data Architecture**:
 ## 📸 Screenshots
 
 | **Search & Discovery** | **Generated Heatmap** |
-|<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/2e983fa6-048f-49eb-9deb-4dd25c378f00" />
+|![photo_6233023739197066301_y](https://github.com/user-attachments/assets/9252bb85-4f50-454e-b380-4e2d2e597724)
+ />
 |
-| *Clean, dark-mode search interface with instant results.* | *High-res generated chart showing episode quality trends.* |
+| *Clean, dark-mode search interface with instant results.* | *<img width="1920" height="1298" alt="One Punch Man" src="https://github.com/user-attachments/assets/680df030-cc54-4d44-b03f-1099c195ec0e" />
+* |
 | ![Search UI](https://via.placeholder.com/400x200?text=Search+Interface) | ![Heatmap Example](https://via.placeholder.com/400x200?text=Generated+Heatmap) |
 
 ## 🛠️ Tech Stack

@@ -49,7 +49,7 @@ To run this application locally, follow these steps:
 ```bash
 git clone [https://github.com/yourusername/imdb-heatmap-generator.git](https://github.com/yourusername/imdb-heatmap-generator.git)
 cd imdb-heatmap-generator
-
+```
 ### 2. Install Dependencies
 Ensure you have the required libraries installed:
 ```bash

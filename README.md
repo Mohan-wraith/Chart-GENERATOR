@@ -30,10 +30,7 @@ It operates on a **Hybrid Data Architecture**:
 
 | **Search & Discovery** | **Generated Heatmap** |
 |:---:|:---:|
-| ![photo_6233023739197066301_y](https://github.com/user-attachments/assets/8eb8ccf1-b334-4ea8-a7d8-e0a4f126034f)
- | <img width="1920" height="1298" alt="One Punch Man" src="https://github.com/user-attachments/assets/be0a3d91-4399-45f3-974b-90e3d45313d4" />
- |
-| ![Search UI](https://via.placeholder.com/400x200?text=Search+Interface+Screenshot) | ![Heatmap Example](https://via.placeholder.com/400x200?text=Heatmap+Example) |
+| <img src="https://github.com/user-attachments/assets/8eb8ccf1-b334-4ea8-a7d8-e0a4f126034f" width="100%"> | <img src="https://github.com/user-attachments/assets/be0a3d91-4399-45f3-974b-90e3d45313d4" width="100%"> |
 ## 🛠️ Tech Stack
 
 * **Frontend:** [Streamlit](https://streamlit.io/) (with custom CSS injection)
